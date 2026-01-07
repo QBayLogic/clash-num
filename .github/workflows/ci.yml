@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Nix
+        run: |
+          curl -L https://nixos.org/nix/install | sh -s -- --daemon
+          sudo tee -a /etc/nix/nix.conf <<EOF
+          experimental-features = nix-command flakes
+          EOF
+      - name: Run `cargo test`
+        run: |
+          . /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
+          nix develop --command cargo test
+          nix develop --command cargo test --release
+          nix develop --command cargo test --features "ufmt"
+          nix develop --command cargo test --release --features "ufmt"
+      - name: Run `cargo miri test`
+        run: |
+          . /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
+          nix develop --command cargo miri test
+          nix develop --command cargo miri test --release
+          nix develop --command cargo miri test --target s390x-unknown-linux-gnu
+          nix develop --command cargo miri test --release --target s390x-unknown-linux-gnu
+      - name: Run `cargo tarpaulin`
+        run: |
+          . /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
+          nix develop --command cargo tarpaulin --out Stdout
